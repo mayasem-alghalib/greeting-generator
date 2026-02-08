@@ -6,20 +6,155 @@
   <title>بطاقة تهنئة</title>
   <style>
     :root{
-      --burgundy:#6b0f1a;
-      --burgundy2:#8a1538;
+      --burgundy:#6b0f1a;   /* أحمر غامق */
       --bg:#f7f2f3;
-      --card:#ffffff;
       --border:#eadfe1;
       --text:#1f1f1f;
       --muted:#6b6b6b;
     }
-
     body{
       font-family: system-ui, -apple-system, "Segoe UI", Arial;
       background: linear-gradient(180deg, var(--bg), #fff);
       margin:0;
       color:var(--text);
     }
+    .wrap{ max-width: 920px; margin: 28px auto; padding: 16px; }
+    .card{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+    }
+    h1{ margin:0 0 14px 0; font-size:20px; color:var(--burgundy); }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+    label{ display:block; font-weight:800; margin-bottom:6px; font-size:14px; }
+    input{
+      padding: 12px 14px;
+      border-radius: 12px;
+      border:1px solid var(--border);
+      min-width: 340px;
+      font-size: 15px;
+      outline:none;
+    }
+    input:focus{
+      border-color: rgba(107,15,26,.45);
+      box-shadow: 0 0 0 4px rgba(107,15,26,.10);
+    }
+    button{
+      padding: 12px 16px;
+      border-radius: 12px;
+      border:0;
+      cursor:pointer;
+      font-weight:900;
+      font-size:14px;
+    }
+    .primary{ background: var(--burgundy); color:#fff; }
+    .primary:hover{ filter: brightness(.95); }
+    .ghost{ background:#f1e7e9; color: var(--burgundy); }
+    .ghost:disabled{ opacity:.55; cursor:not-allowed; }
 
-    .wr
+    canvas{
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      background:#fff;
+      border:1px solid var(--border);
+      margin-top:14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>بطاقة تهنئة</h1>
+
+      <div class="row">
+        <div>
+          <label>اسم الموظف</label>
+          <input id="name" type="text" placeholder="اكتب اسمك هنا" />
+        </div>
+
+        <button class="primary" id="btnGenerate">إنشاء البطاقة</button>
+        <button class="ghost" id="btnDownload" disabled>تحميل</button>
+      </div>
+
+      <canvas id="c" width="1080" height="1350"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ✅ إعدادات ثابتة (الموظف ما يغير شيء)
+    const TEXT_COLOR = "#6b0f1a";  // أحمر غامق
+    const BASE_FONT_SIZE = 54;
+    const MAX_TEXT_WIDTH = 920;
+
+    // ✅ مكان الاسم على القالب (عدّليه إذا احتجتي)
+    const NAME_X = 540;   // يمين/يسار
+    const NAME_Y = 880;   // فوق/تحت
+
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const nameInput = document.getElementById("name");
+    const btnGenerate = document.getElementById("btnGenerate");
+    const btnDownload = document.getElementById("btnDownload");
+    let lastDataUrl = null;
+
+    function fitTextSize(text, baseSize) {
+      let size = baseSize;
+      while (size > 18) {
+        ctx.font = `${size}px Arial, sans-serif`;
+        if (ctx.measureText(text).width <= MAX_TEXT_WIDTH) return size;
+        size -= 2;
+      }
+      return size;
+    }
+
+    function generate() {
+      const name = (nameInput.value || "").trim();
+      if (!name) return alert("اكتب الاسم أولاً");
+
+      const img = new Image();
+      img.src = "template.png";
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = TEXT_COLOR;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.direction = "rtl";
+
+        const size = fitTextSize(name, BASE_FONT_SIZE);
+        ctx.font = `${size}px Arial, sans-serif`;
+
+        ctx.shadowColor = "rgba(0,0,0,0.12)";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+
+        ctx.fillText(name, NAME_X, NAME_Y);
+
+        lastDataUrl = canvas.toDataURL("image/png");
+        btnDownload.disabled = false;
+      };
+      img.onerror = () => alert("تأكدي أن template.png موجودة داخل نفس المشروع.");
+    }
+
+    function download() {
+      if (!lastDataUrl) return;
+      const safeName = (nameInput.value || "card").trim().replace(/\s+/g, "_");
+      const a = document.createElement("a");
+      a.href = lastDataUrl;
+      a.download = `بطاقة_${safeName}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    btnGenerate.addEventListener("click", generate);
+    btnDownload.addEventListener("click", download);
+    nameInput.addEventListener("keydown", (e) => { if (e.key === "Enter") generate(); });
+  </script>
+</body>
+</html>
