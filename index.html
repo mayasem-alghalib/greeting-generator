@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>مولّد بطاقة تهنئة</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Arial; background:#f5f5f5; margin:0; }
+    .wrap { max-width: 900px; margin: 24px auto; padding: 16px; }
+    .card { background:#fff; border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
+    label { display:block; font-weight:600; margin-bottom:6px; }
+    input, select { padding: 12px; border-radius: 12px; border:1px solid #ddd; min-width: 260px; }
+    button { padding: 12px 16px; border-radius: 12px; border:0; cursor:pointer; font-weight:700; }
+    .primary { background:#157347; color:#fff; }
+    .ghost { background:#eee; }
+    canvas { width: 100%; height: auto; border-radius: 14px; background:#fafafa; border:1px solid #eee; }
+    .hint { color:#666; font-size: 14px; margin-top: 8px; line-height:1.7; }
+    .small { font-size: 13px; color:#777; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2 style="margin-top:0">مولّد بطاقة تهنئة بالاسم</h2>
+
+      <div class="row">
+        <div>
+          <label>اسم الموظف</label>
+          <input id="name" type="text" placeholder="مثال: عبدالله أحمد المبارك" />
+          <div class="small">ملاحظة: لو الاسم عربي، بيطلع أفضل مع خط عربي.</div>
+        </div>
+
+        <div>
+          <label>حجم الخط</label>
+          <input id="fontSize" type="number" value="54" min="20" max="120" />
+        </div>
+
+        <div>
+          <label>لون الخط</label>
+          <input id="color" type="text" value="#5b2aa5" />
+        </div>
+
+        <button class="primary" id="btnGenerate">إنشاء الصورة</button>
+        <button class="ghost" id="btnDownload" disabled>تحميل</button>
+      </div>
+
+      <p class="hint">
+        ✅ استخدمي صورة القالب باسم <b>template.png</b> داخل نفس المجلد.<br>
+        لو تبين تغيير مكان الاسم: عدّلي الإحداثيات (X,Y) في الكود تحت.
+      </p>
+
+      <canvas id="c" width="1080" height="1350"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // --- إعدادات مكان الاسم على الصورة ---
+    // غيّري X و Y عشان تحطين الاسم في المكان الصحيح على القالب
+    const NAME_X = 540;   // منتصف العرض (لأن العرض 1080)
+    const NAME_Y = 640;   // نزّلي/طلّعي الرقم حسب مكان الاسم
+
+    // عرض أقصى للاسم (عشان إذا كان طويل ينضغط أو يصغر)
+    const MAX_TEXT_WIDTH = 920;
+
+    // تحميل الخط العربي (اختياري)
+    async function loadFont() {
+      // إذا ما عندك ملف الخط، عادي… احذفي هالدالة أو خليه كما هو
+      const font = new FontFace("Cairo", "url(Cairo-Regular.ttf)");
+      try {
+        await font.load();
+        document.fonts.add(font);
+      } catch (e) {
+        // إذا الخط غير موجود، عادي نكمل بخط النظام
+      }
+    }
+
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+
+    const nameInput = document.getElementById("name");
+    const fontSizeInput = document.getElementById("fontSize");
+    const colorInput = document.getElementById("color");
+    const btnGenerate = document.getElementById("btnGenerate");
+    const btnDownload = document.getElementById("btnDownload");
+
+    let lastDataUrl = null;
+
+    function fitTextSize(text, baseSize) {
+      // يصغّر الخط تلقائياً إذا الاسم طويل
+      let size = baseSize;
+      while (size > 18) {
+        ctx.font = `${size}px Cairo, Arial, sans-serif`;
+        const w = ctx.measureText(text).width;
+        if (w <= MAX_TEXT_WIDTH) return size;
+        size -= 2;
+      }
+      return size;
+    }
+
+    async function generate() {
+      const name = (nameInput.value || "").trim();
+      if (!name) {
+        alert("اكتبي الاسم أولاً");
+        return;
+      }
+
+      const img = new Image();
+      img.src = "template.png";
+      img.onload = () => {
+        // ارسم القالب
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // إعدادات الكتابة
+        ctx.fillStyle = colorInput.value || "#000";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // مهم للعربي: اتجاه الكتابة
+        ctx.direction = "rtl";
+
+        const baseSize = parseInt(fontSizeInput.value || "54", 10);
+        const size = fitTextSize(name, baseSize);
+        ctx.font = `${size}px Cairo, Arial, sans-serif`;
+
+        // ظل بسيط (اختياري)
+        ctx.shadowColor = "rgba(0,0,0,0.15)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+
+        // ارسم الاسم
+        ctx.fillText(name, NAME_X, NAME_Y);
+
+        // احفظ DataURL للتحميل
+        lastDataUrl = canvas.toDataURL("image/png");
+        btnDownload.disabled = false;
+      };
+
+      img.onerror = () => {
+        alert("ما قدرت أفتح template.png — تأكدي إن الصورة موجودة بنفس المجلد وبنفس الاسم");
+      };
+    }
+
+    function download() {
+      if (!lastDataUrl) return;
+      const name = (nameInput.value || "card").trim().replace(/\s+/g, "_");
+      const a = document.createElement("a");
+      a.href = lastDataUrl;
+      a.download = `تهنئة_${name}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    btnGenerate.addEventListener("click", generate);
+    btnDownload.addEventListener("click", download);
+
+    loadFont();
+  </script>
+</body>
+</html>
